@@ -4,6 +4,12 @@
 TEMP_DIR="./temp_ocr"
 mkdir -p "$TEMP_DIR"
 
+# Set crop region (BL = Bottom Left, BR = Bottom Right, TL = Top Left, TR = Top Right)
+CROP_REGION="BR"  # Change this to BR, TL, or TR as needed
+
+# Set target text to detect
+TARGET_TEXT="skip"  # Change this to whatever text you want to detect
+
 while true; do
     SCREENSHOT="$TEMP_DIR/screen.png"
     CROPPED="$TEMP_DIR/cropped.png"
@@ -23,12 +29,19 @@ while true; do
         exit 1
     fi
 
-    # Crop bottom-left half
+    # Calculate crop coordinates based on region
     CROP_WIDTH=$((WIDTH / 2))
     CROP_HEIGHT=$((HEIGHT / 2))
-    CROP_X=0
-    CROP_Y=$((HEIGHT / 2))
 
+    case "$CROP_REGION" in
+        "BL") CROP_X=0; CROP_Y=$((HEIGHT / 2)) ;;  # Bottom Left
+        "BR") CROP_X=$((WIDTH / 2)); CROP_Y=$((HEIGHT / 2)) ;;  # Bottom Right
+        "TL") CROP_X=0; CROP_Y=0 ;;  # Top Left
+        "TR") CROP_X=$((WIDTH / 2)); CROP_Y=0 ;;  # Top Right
+        *) echo "Invalid CROP_REGION"; exit 1 ;;
+    esac
+
+    # Crop the specified region
     magick "$SCREENSHOT" -crop ${CROP_WIDTH}x${CROP_HEIGHT}+${CROP_X}+${CROP_Y} "$CROPPED"
 
     # Improve image contrast for OCR
@@ -41,12 +54,12 @@ while true; do
     # Print extracted text
     echo "Extracted Text: $TEXT"
 
-    # Check for 'Parithabangal'
-    if echo "$TEXT" | grep -iq "Parithabangal"; then
-        echo "Detected: Parithabangal - Pressing Enter"
+    # Check for target text
+    if echo "$TEXT" | grep -iq "$TARGET_TEXT"; then
+        echo "Detected: $TARGET_TEXT - Pressing Enter"
         adb shell input keyevent 66
     fi
 
     # Sleep before next iteration
-    sleep 2
+    sleep 3
 done
