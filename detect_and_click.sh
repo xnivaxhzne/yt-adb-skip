@@ -1,37 +1,35 @@
 #!/bin/bash
 
 while true; do
-    echo "Checking for Skip Ad button or Parithabangal..."
-
-    # Step 1: Capture Screenshot from Android TV
+    # Capture Screenshot
     adb shell screencap -p /sdcard/screen.png
+    adb pull /sdcard/screen.png .
 
-    # Step 2: Pull Screenshot to Local Machine
-    adb pull /sdcard/screen.png ./screen.png >/dev/null 2>&1
+    # Get Image Dimensions
+    WIDTH=$(magick identify -format "%w" screen.png)
+    HEIGHT=$(magick identify -format "%h" screen.png)
 
-    # Step 3: Run OCR with Tesseract
-    tesseract screen.png output_text >/dev/null 2>&1
+    # Calculate Cropping for Left-Bottom Half
+    CROP_WIDTH=$((WIDTH / 2))
+    CROP_HEIGHT=$((HEIGHT / 2))
+    CROP_X=0  # Left side
+    CROP_Y=$((HEIGHT / 2))  # Bottom half
 
-    # Step 4: Read Extracted Text
-    extracted_text=$(cat output_text.txt)
+    # Crop Image (Left-Bottom)
+    magick screen.png -crop ${CROP_WIDTH}x${CROP_HEIGHT}+${CROP_X}+${CROP_Y} cropped.png
 
-    # Step 5: Print Extracted Content
-    echo "Extracted Text: "
-    echo "--------------------------------"
-    echo "$extracted_text"
-    echo "--------------------------------"
+    # Extract Text using Tesseract
+    tesseract cropped.png output_text
 
-    # Step 6: Check for "Skip" in Extracted Text
-    if echo "$extracted_text" | grep -i "skip"; then
-        echo "🎯 Skip Ad button detected!"
+    # Read Extracted Text
+    TEXT=$(cat output_text.txt)
+
+    # Check for 'Parithabangal'
+    if echo "$TEXT" | grep -iq "Parithabangal"; then
+        echo "Detected: Parithabangal - Pressing Enter"
+        adb shell input keyevent 66  # Simulate Enter key
     fi
 
-    # Step 7: Check for "Parithabangal" and Press Enter
-    if echo "$extracted_text" | grep -i "Parithabangal"; then
-        echo "✅ 'Parithabangal' found! Pressing ENTER..."
-        adb shell input keyevent KEYCODE_ENTER
-    fi
-
-    # Step 8: Wait for 2 seconds before checking again
+    # Sleep to avoid excessive CPU usage
     sleep 2
 done
